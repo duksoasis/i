@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>i</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            margin-top: 50px;
+        }
+
+        .game-container {
+            position: relative;
+            width: 300px;
+            height: 450px;
+            margin: 0 auto;
+            border: 2px solid white;
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        .home-menu {
+            display: block;
+            margin-top: 50px;
+        }
+
+        .button {
+            background-color: #444;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .button:hover {
+            background-color: #555;
+        }
+
+        .scoreboard {
+            margin-top: 20px;
+        }
+
+        .score {
+            font-size: 18px;
+        }
+
+        .highscore {
+            font-size: 16px;
+            color: yellow;
+        }
+
+        .game-over {
+            color: red;
+            font-size: 24px;
+        }
+
+        .game-over, .retry-button {
+            display: none;
+        }
+
+        .background-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background-color: #333;
+            z-index: 1; /* Set the background layers to be behind the player and pipes */
+        }
+
+        .layer-1 { background-color: #2d2d2d; z-index: 1; }
+        .layer-2 { background-color: #3d3d3d; z-index: 1; }
+        .layer-3 { background-color: #4d4d4d; z-index: 1; }
+        .layer-4 { background-color: #5d5d5d; z-index: 1; }
+    </style>
+</head>
+<body>
+    <h1>Did you really think it would be that easy? Try again. Though here's something to entertain you while you wait.</h1>
+
+    <div class="game-container" id="gameContainer">
+        <div class="background-layer layer-1"></div>
+        <div class="background-layer layer-2"></div>
+        <div class="background-layer layer-3"></div>
+        <div class="background-layer layer-4"></div>
+    </div>
+
+    <div class="home-menu" id="homeMenu">
+        <button class="button" onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="scoreboard">
+        <div class="score" id="score">Score: 0</div>
+        <div class="highscore" id="highscore">High Score: 0</div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        You Died
+    </div>
+    <div>
+        <button class="button retry-button" id="retryButton" onclick="startGame()">Restart</button>
+    </div>
+
+    <script>
+        let gameContainer = document.getElementById("gameContainer");
+        let homeMenu = document.getElementById("homeMenu");
+        let scoreElement = document.getElementById("score");
+        let highscoreElement = document.getElementById("highscore");
+        let gameOverElement = document.getElementById("gameOver");
+        let retryButton = document.getElementById("retryButton");
+
+        let gameInterval;
+        let gravity = 0.4;
+        let jumpStrength = 6;
+        let gameSpeed = 3;
+        let player;
+        let pipes = [];
+        let score = 0;
+        let highscore = 0;
+        let isPlaying = false;
+
+        // Sliding background layers
+        let layers = document.querySelectorAll('.background-layer');
+        let layerSpeed = 2; // Speed of sliding effect
+
+        function startGame() {
+            isPlaying = true;
+            score = 0;
+            player = {
+                x: 50,
+                y: 200,
+                radius: 10,
+                velocity: 0
+            };
+            pipes = [];
+            scoreElement.innerText = `Score: ${score}`;
+            homeMenu.style.display = "none";
+            gameOverElement.style.display = "none";
+            retryButton.style.display = "none";
+            gameContainer.style.background = "#333";
+            document.addEventListener("keydown", handleKeyPress);
+            document.addEventListener("mousedown", handleMousePress);
+            gameInterval = setInterval(gameLoop, 1000 / 60); // 60 FPS
+        }
+
+        function handleKeyPress(event) {
+            if (event.code === "Space" || event.code === "ArrowUp" || event.code === "KeyW") {
+                player.velocity = -jumpStrength;
+            }
+        }
+
+        function handleMousePress() {
+            player.velocity = -jumpStrength;
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            // Update player position
+            player.velocity += gravity;
+            player.y += player.velocity;
+
+            // Move sliding background layers
+            for (let i = 0; i < layers.length; i++) {
+                let layer = layers[i];
+                let leftPosition = parseFloat(layer.style.left || 0);
+                layer.style.left = (leftPosition - layerSpeed) + "px";
+
+                // Loop the background layers once they move off-screen
+                if (leftPosition <= -gameContainer.offsetWidth) {
+                    layer.style.left = gameContainer.offsetWidth + "px";  // Reset to the right side
+                }
+            }
+
+            // Check for collisions
+            if (player.y + player.radius > gameContainer.clientHeight || player.y - player.radius < 0) {
+                endGame();
+            }
+
+            // Move and check pipes
+            if (pipes.length === 0 || pipes[pipes.length - 1].x < gameContainer.clientWidth - 150) {
+                generatePipe();
+            }
+
+            for (let i = 0; i < pipes.length; i++) {
+                pipes[i].x -= gameSpeed;
+                if (pipes[i].x + pipes[i].width < 0) {
+                    pipes.splice(i, 1);
+                    score++;
+                    scoreElement.innerText = `Score: ${score}`;
+                }
+            }
+
+            // Check for pipe collision
+            for (let i = 0; i < pipes.length; i++) {
+                if (player.x + player.radius > pipes[i].x && player.x - player.radius < pipes[i].x + pipes[i].width) {
+                    if (player.y - player.radius < pipes[i].top || player.y + player.radius > pipes[i].bottom) {
+                        endGame();
+                    }
+                }
+            }
+
+            render();
+        }
+
+        function generatePipe() {
+            let gapHeight = 150;
+            let randomHeight = Math.floor(Math.random() * (gameContainer.clientHeight - gapHeight));
+            pipes.push({
+                x: gameContainer.clientWidth,
+                width: 30,
+                top: randomHeight,
+                bottom: randomHeight + gapHeight
+            });
+        }
+
+        function render() {
+            gameContainer.innerHTML = '';
+
+            // Draw sliding background layers
+            for (let i = 0; i < layers.length; i++) {
+                let layer = layers[i];
+                gameContainer.appendChild(layer);
+            }
+
+            // Draw player
+            let playerElement = document.createElement("div");
+            playerElement.style.position = "absolute";
+            playerElement.style.width = player.radius * 2 + "px";
+            playerElement.style.height = player.radius * 2 + "px";
+            playerElement.style.backgroundColor = "lightgrey";
+            playerElement.style.borderRadius = "50%";
+            playerElement.style.top = player.y - player.radius + "px";
+            playerElement.style.left = player.x - player.radius + "px";
+            playerElement.style.zIndex = 2;  // Ensure player is above the background
+            gameContainer.appendChild(playerElement);
+
+            // Draw pipes
+            for (let i = 0; i < pipes.length; i++) {
+                // Top pipe
+                let topPipe = document.createElement("div");
+                topPipe.style.position = "absolute";
+                topPipe.style.width = pipes[i].width + "px";
+                topPipe.style.height = pipes[i].top + "px";
+                topPipe.style.backgroundColor = "grey";
+                topPipe.style.left = pipes[i].x + "px";
+                topPipe.style.zIndex = 2; // Ensure pipe is above the background
+                gameContainer.appendChild(topPipe);
+
+                // Bottom pipe
+                let bottomPipe = document.createElement("div");
+                bottomPipe.style.position = "absolute";
+                bottomPipe.style.width = pipes[i].width + "px";
+                bottomPipe.style.height = (gameContainer.clientHeight - pipes[i].bottom) + "px";
+                bottomPipe.style.backgroundColor = "grey";
+                bottomPipe.style.left = pipes[i].x + "px";
+                bottomPipe.style.bottom = "0px";
+                bottomPipe.style.zIndex = 2; // Ensure pipe is above the background
+                gameContainer.appendChild(bottomPipe);
+            }
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            isPlaying = false;
+            if (score > highscore) {
+                highscore = score;
+                highscoreElement.innerText = `High Score: ${highscore}`;
+            }
+            gameOverElement.style.display = "block";
+            retryButton.style.display = "inline-block";
+        }
+    </script>
+</body>
+</html>
