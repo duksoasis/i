@@ -213,15 +213,22 @@
             render();
         }
 
+        let lastPipeHeight = Math.floor(Math.random() * (gameContainer.clientHeight - 150)); // Initial pipe height
+
         function generatePipe() {
             let gapHeight = 150;
-            let randomHeight = Math.floor(Math.random() * (gameContainer.clientHeight - gapHeight));
+            let minHeight = Math.max(0, lastPipeHeight - 20);
+            let maxHeight = Math.min(gameContainer.clientHeight - gapHeight, lastPipeHeight + 20);
+            let randomHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+            
             pipes.push({
                 x: gameContainer.clientWidth,
                 width: 30,
                 top: randomHeight,
                 bottom: randomHeight + gapHeight
             });
+            
+            lastPipeHeight = randomHeight; // Store the new height for the next pipe
         }
 
         function render() {
